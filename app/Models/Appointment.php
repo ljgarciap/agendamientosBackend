@@ -11,19 +11,26 @@ class Appointment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
         'service_id',
-        'scheduled_at',
-        'location',
-        'status',
+        'user_id',
+        'company_id',
         'assigned_to',
+        'scheduled_at',
+        'status',
+        'location',
         'latitude',
         'longitude',
         'employee_latitude',
         'employee_longitude',
+        'approval_token',
         'rating',
         'review_comment',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
     public function user()
     {
         return $this->belongsTo(User::class);

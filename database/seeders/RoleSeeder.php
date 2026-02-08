@@ -45,15 +45,22 @@ class RoleSeeder extends Seeder
         $role = \Spatie\Permission\Models\Role::findOrCreate('client');
         $role->givePermissionTo(['request appointment', 'view own appointments', 'view services']);
 
+        // Super Admin (Global)
+        $role = \Spatie\Permission\Models\Role::findOrCreate('super_admin');
+        // Give all permissions or specific manage_companies permission
+        $role->givePermissionTo(\Spatie\Permission\Models\Permission::all());
+
         // Create Default Admin User
         // Create Default Admin User
+        // Create Default Admin User (Company Admin placeholder, though technically needs company_id)
+        // For now, let's create a Super Admin
         $user = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
+            ['email' => 'superadmin@example.com'],
             [
-                'name' => 'Admin User',
+                'name' => 'Super Administrator',
                 'password' => bcrypt('password'),
             ]
         );
-        $user->assignRole('admin');
+        $user->assignRole('super_admin');
     }
 }

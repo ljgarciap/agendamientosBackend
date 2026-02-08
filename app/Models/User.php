@@ -8,10 +8,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, \Spatie\Permission\Traits\HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, \Spatie\Permission\Traits\HasRoles, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -22,7 +24,17 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'company_id',
+        'profile_photo_url',
+        'average_rating',
+        'birth_date',
+        'phone',
     ];
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
 
     /**
      * Eager load roles relationship for API consistency.
@@ -55,5 +67,15 @@ class User extends Authenticatable
     public function assignedAppointments()
     {
         return $this->hasMany(Appointment::class, 'assigned_to');
+    }
+
+    public function services()
+    {
+        return $this->belongsToMany(Service::class, 'service_user');
+    }
+
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'user_id');
     }
 }

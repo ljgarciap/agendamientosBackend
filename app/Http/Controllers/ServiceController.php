@@ -10,9 +10,22 @@ use Illuminate\Support\Facades\Auth;
 class ServiceController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(['data' => Service::all()]);
+        // Public or Auth generic? If public, maybe pass company_id as query param?
+        // But for logged in user, use their Company ID.
+        // For now, let's assume it's for logged in context or passed via query for public.
+        
+        $companyId = $request->query('company_id');
+        if (Auth::check()) {
+            $companyId = Auth::user()->company_id;
+        }
+
+        if (!$companyId) {
+             return response()->json(['data' => []]); // Or all? Better safe than sorry.
+        }
+
+        return response()->json(['data' => Service::where('company_id', $companyId)->get()]);
     }
 
     public function store(Request $request)
@@ -27,42 +40,98 @@ class ServiceController extends Controller
             'detail' => 'nullable|string',
             'icon' => 'nullable|string',
             'category' => 'required|string',
+            'price' => 'nullable|numeric',
+            'duration_minutes' => 'nullable|integer',
+            'location_type' => 'required|in:onsite,delivery,both',
+            'image' => 'nullable|image|max:2048', // Added image validation
         ]);
 
-        return response()->json(['data' => Service::create($validated)], 201);
+        $data = $validated;
+        $data['company_id'] = Auth::user()->company_id;
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('service-images', 'public');
+            $data['image_url'] = route('service.image', ['filename' => basename($path)]);
+        }
+
+        return response()->json(['data' => Service::create($data)], 201);
     }
 
-    public function show(Service $service)
+    public function show($id)
     {
+        // Public or Private? If public, show. If private, check company.
+        // Let's assume public read is okay for now, OR restrict to company.
+        // Given constraints: "Admin creates services", implies private management.
+        
+        $service = Service::findOrFail($id);
+        
+        // If strict mode (only see own company services in admin panel)
+        // But clients need to see them too.
+        // Let's leave show open or check context. 
+        // For simpler implementation now: allow public read (clients need it), 
+        // but store/update/destroy must be secured.
+        
         return response()->json(['data' => $service]);
     }
 
-    public function update(Request $request, Service $service)
+    public function update(Request $request, $id)
     {
-        if (!Auth::user()->can('manage services')) {
+        $user = Auth::user();
+        if (!$user->can('manage services')) {
              return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $service = Service::where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->firstOrFail();
+
         $validated = $request->validate([
-            'name' => 'string|max:255',
+            'name' => 'sometimes|string|max:255',
             'detail' => 'nullable|string',
             'icon' => 'nullable|string',
-            'category' => 'string',
+            'category' => 'sometimes|string',
+            'price' => 'nullable|numeric', 
+            'duration_minutes' => 'nullable|integer',
+            'location_type' => 'sometimes|in:onsite,delivery,both',
+            'image' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('service-images', 'public');
+            $validated['image_url'] = route('service.image', ['filename' => basename($path)]);
+        }
 
         $service->update($validated);
 
         return response()->json(['data' => $service]);
     }
 
-    public function destroy(Service $service)
+    public function destroy($id)
     {
-        if (!Auth::user()->can('manage services')) {
+        // ... (existing destroy logic)
+        $user = Auth::user();
+        if (!$user->can('manage services')) {
              return response()->json(['message' => 'Unauthorized'], 403);
         }
+
+        $service = Service::where('id', $id)
+            ->where('company_id', $user->company_id)
+            ->firstOrFail();
 
         $service->delete();
 
         return response()->noContent();
+    }
+
+    public function getServiceImage($filename)
+    {
+        $path = storage_path('app/public/service-images/' . $filename);
+        if (!file_exists($path)) {
+            abort(404);
+        }
+        return response()->file($path, [
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+        ]);
     }
 }

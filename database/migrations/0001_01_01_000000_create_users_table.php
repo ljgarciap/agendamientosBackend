@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
+            $table->string('email'); // Unique removed here, added as composite elsewhere
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

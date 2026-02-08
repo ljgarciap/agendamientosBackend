@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RoleSeeder::class,
+            // CompanySeeder::class, // Disabled for clean start (Super Admin only)
         ]);
     }
 }
